@@ -2,6 +2,15 @@ import Globals from './globals';
 
 class CanvasGraphics {
 
+    redraw ({
+        snake,
+        apple
+    }) {
+        this.clear();
+        this.drawApple(apple);
+        this.drawSnake(snake);
+    }
+
     drawGrid () {
         let size = Globals.FIELD_SIZE * Globals.CELL_SIZE,
             canvas = `<canvas id="sCanvas" class="snake-canvas" width="${size}" height="${size}"></canvas>`;

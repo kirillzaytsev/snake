@@ -1,5 +1,6 @@
-import {store, storeR} from 'rstore';
 import Rx from 'rxjs';
+
+import rxStore from './state';
 import * as reducers from './reducers';
 import _ from './util';
 import {getDirection, isDirectionKey} from './keyboard';
@@ -8,10 +9,13 @@ import CanvasGraphics from './graphics';
 const graphics = new CanvasGraphics();
 graphics.drawGrid();
 
+// let speed = 500;
+
 const speedSubject = new Rx.BehaviorSubject(500);
-const keydownObservable = 
-    Rx.Observable
-        .fromEvent(document, 'keydown');
+// const speedSubject = new Rx.Subject();
+// speedSubject.next(500);
+
+const keydownObservable = Rx.Observable.fromEvent(document, 'keydown');
 
 const direction$ = 
     keydownObservable
@@ -21,57 +25,29 @@ const direction$ =
             direction: getDirection(code)
         }));
 
-// const refresh$ = 
-//     speedSubject
-//         .combineLatest(
-//             Rx.Observable.merge(
-//                 speedSubject, 
-//                 direction$
-//             ),
-//             s => s
-//         )
-//         .switchMap((s) => Rx.Observable.of(null).concat(Rx.Observable.interval(s)));
-
-// const refresh$ = 
-//     speedSubject
-//         .combineLatest(direction$, s => s)
-//         .switchMap((s) => Rx.Observable.of(null).concat(Rx.Observable.interval(s)));
+// const refresh$ = direction$.switchMap(d => Rx.Observable.interval(speed).startWith(null));
 
 const refresh$ = 
     speedSubject
-        .combineLatest(direction$, s => s)
-        .switchMap((s) => Rx.Observable.interval(s).startWith(null));
+        .combineLatest(direction$, speed => speed)
+        .switchMap(speed => Rx.Observable.interval(speed).startWith(null));
 
-refresh$.subscribe(x => {
-    console.log(x);
-})
+rxStore
+    .plug(
+        direction$, reducers.direction,
+        refresh$, reducers.refresh
+    )
+    .subscribe(state => {
+        console.timeEnd();
+        graphics.redraw(state);
+        console.time();
+    });
 
-// const initialDirection = _.randomDirection();
-// const initialSnake = _.initSnake(initialDirection);
-// const initialApple = _.generateApple(initialSnake);
-
-// const initialState = {
-//     direction: initialDirection,
-//     snake: initialSnake,
-//     apple: initialApple,
-//     lastKey: 0
-// };
-
-// const rxStore = storeR(initialState)
-//     .plug(
-//         direction$, reducers.direction,
-//         refresh$, reducers.refresh
-//     )
-//     .subscribe(state => {
-//         graphics.clear();
-//         graphics.drawSnake(state.snake);
-//         graphics.drawApple(state.apple);
-//     });
-
-// rxStore.toRx(Rx)
-//     .map(state => state.snake.length)
-//     .filter(len => len % 5 === 0)
-//     .distinct()
-//     .subscribe(len => {
-//         speedSubject.next(500 - len * 2);
-//     });
+rxStore.toRx(Rx)
+    .map(({snake}) => snake.length)
+    .filter(len => len % 5 === 0)
+    .distinct()
+    .subscribe(len => {
+        console.log('Current length: ', len);
+        speedSubject.next(500 - len * 10);
+    });
